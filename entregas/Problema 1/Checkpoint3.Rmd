@@ -1,0 +1,178 @@
+---
+title: "Problema 1 - Checkpoint 3"
+author: "Arthur Vinícius Tomé Rodrigues"
+date: "May 6, 2018"
+output: 
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: yes
+  html_notebook:
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+theme_set(theme_bw())
+```
+
+Nesta análise, utilizaremos os dados de todas as séries.
+
+```{r}
+dados = read_csv(here("data/series_from_imdb.csv"), 
+                    progress = FALSE,
+                    col_types = cols(.default = col_double(), 
+                                     series_name = col_character(), 
+                                     episode = col_character(), 
+                                     url = col_character(),
+                                     season = col_character()))
+
+```
+
+## Relação entre número de episódios e avaliação
+
+Existe alguma relação entre a quantidade de episódios de uma série e sua avaliação geral dentre os usuários?
+Séries mais longas ou mais curtas são mais amadas?
+
+Temos, para cada série, a nota dada pelos usuários em cada episódio.
+Vamos definir a **média** dessas notas (para a série como um todo) sendo sua avaliação geral.
+
+Vamos gerar também uma nova variável (**total_ep**), representando a quantidade de episódios de cada série.
+
+```{r}
+media_por_eps = dados %>%
+                group_by(series_name) %>% 
+                summarise(media = mean(user_rating), total_ep = max(series_ep))
+media_por_eps
+```
+
+Vejamos graficamente a relação entre essas duas variáveis.
+
+```{r}
+media_por_eps %>%
+    ggplot(aes(x = total_ep, y = media)) + 
+    geom_point() 
+```
+
+Analisando o gráfico, podemos concluir que a avaliação das séries independe do número de episódios.
+
+A variação na avaliação dada pelos usuários é bem alta, não importando se as séries são curtas ou longas.
+
+Vamos então confirmar, numericamente, através de cálculo de correlação linear, se essa conclusão é correta.
+
+```{r}
+media_por_eps %>%
+    summarise(correlacao_linear = cor(total_ep, media, 
+                                      method = "pearson"))
+```
+
+A correlação entra as duas variáveis é quase nula, ou seja, elas estão fracamente relacionadas.
+
+Enfim, podemos descartar a quantidade de episódios como sendo um fator que define se a série será ou não amada pelo público.
+
+"A perfeição não consiste na quantidade, mas na qualidade."
+
+### **Como varia a quantidade de episódios nas séries?**
+
+Não pude deixar de notar, através do gráfico gerado anteriormente, que os dados são bastante concentrados à esquerda. 
+
+Apesar de existirem séries com quase 800 episódios, uma grande porcentagem das séries possui uma quantidade bem menor.
+
+Vejamos então como varia a quantidade de episódios nas séries.
+
+```{r}
+summary(media_por_eps$total_ep)
+```
+
+Temos então que 50% das séries tem 36 ou menos episódios (informação obtida através da mediana), enquanto a série mais longa possui 790 episódios, um aumento de quase 2200% em relação a mediana.
+
+Graficamente,
+
+```{r}
+ggplot(media_por_eps, mapping = aes(x = total_ep)) + 
+    geom_histogram(bins = 50) + 
+    geom_rug()
+```
+
+
+## Séries mais famosas
+
+Quais são as 3 séries mais famosas/assistidas? 
+
+Temos, para cada série, a quantidade de votos de usuários para cada episódio.
+
+Vamos assumir que quanto mais votos, mais pessoas assistem a série. Logo, as séries que desejamos devem possuir a maior quantidade de votos.
+
+Porém, a quantidade de votos apresentada nos dados é referente a cada episódio, vamos então criar uma nova variável (**fama**), que será a média do número de votos ao longo da série.
+
+```{r}
+series_fame = dados %>%
+                group_by(series_name) %>% 
+                summarise(fame = mean(user_votes))
+series_fame
+```
+
+Agora, vamos ordenar as séries em relação à fama, em ordem decrescente. Assim teremos as 3 séries desejadas.
+
+```{r}
+arrange(series_fame, desc(fame))
+```
+
+Obtemos assim, que as 3 séries mais famosas são: **Game of Thrones**, **Sherlock** e **Breaking Bad**.
+
+### Sendo as séries mais famosas, elas são as melhores/mais amadas?
+
+É intuitivo pensar que as séries mais famosas possuem as melhores avaliações, vejamos então se isso é verdade.
+
+Vamos inicialmente calcular a avaliação geral dessas séries.
+
+```{r}
+media_famous_series = dados %>% 
+                        filter(series_name %in% c("Game of Thrones", "Sherlock", "Breaking Bad")) %>%
+                        group_by(series_name) %>%
+                        summarise(media = mean(user_rating))
+media_famous_series
+```
+
+Temos que a série mais famosa possui, como avaliação geral, 9.04. 
+As 2 outras séries possuem notas bem próximas, sendo a menor delas 8.86.
+
+Mas, será que essas são as séries mais bem avaliadas dentre todas? Ou pelo menos estão entre as melhores?
+
+Vejamos então como varia a avaliação das séries.
+
+```{r}
+var_media = dados %>% 
+                group_by(series_name) %>%
+                summarise(media = mean(user_rating))
+
+var_media %>% summary(media)
+```
+
+```{r}
+ggplot(var_media, mapping = aes(x = media)) + 
+    geom_histogram(bins = 50) + 
+    geom_rug()
+```
+
+Temos que tanto a média como a mediana das avaliações é de aproximadamente 8.
+As notas das séries mais famosas estão bem acima disso, e chegam bem próximo da nota máxima, que é 9.134.
+
+Podemos ver também, através do gráfico, que uma pequena porcentagem das séries possui avaliação tão alta quanto as séries famosas (> 8.86).
+E quanto exatamente é essa porcetagem?
+
+```{r}
+better_series = var_media %>% filter(media > 8.86)
+
+quant_high_medias = nrow(better_series)
+perc = quant_high_medias / nrow(var_media) * 100.0
+```
+
+```{r}
+quant_high_medias
+perc
+```
+
+Logo, apesar das 3 séries mais famosas não serem exatamente as 3 séries com maior avaliação, elas estão entre as 23 mais bem avaliadas, o que representa apenas 4.5% das séries.

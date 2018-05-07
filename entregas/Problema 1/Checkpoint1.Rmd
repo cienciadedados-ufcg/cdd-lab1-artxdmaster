@@ -1,0 +1,133 @@
+---
+title: "AD1 - Dados sobre séries de TV"
+author: "Arthur Vinícius Tomé Rodrigues"
+date: "April 26, 2018"
+output: 
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: yes
+  html_notebook:
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+theme_set(theme_bw())
+```
+
+Para a realização dessa análise, utilizaremos os dados das seguintes séries: *The Walking Dead*, *Archer* e *The Office*.
+
+```{r}
+dados = read_csv(here("data/series_from_imdb.csv"), 
+                    progress = FALSE,
+                    col_types = cols(.default = col_double(), 
+                                     series_name = col_character(), 
+                                     episode = col_character(), 
+                                     url = col_character(),
+                                     season = col_character()))
+
+dados = dados %>% filter(series_name %in% c("The Walking Dead", "Archer", "The Office")) 
+```
+
+## Série mais bem avaliada? 
+
+Desejamos saber qual das séries escolhidas é a mais bem avaliada no IMDB.
+
+Temos, para cada série, a nota dada pelos usuários em cada episódio.
+Vamos definir a **média** dessas notas (para a série como um todo) como método de comparação entre as séries.
+
+```{r}
+dados %>%
+    group_by(series_name) %>% 
+    summarise(media = mean(user_rating))
+```
+
+Podemos ver que a série mais bem avaliada foi *The Walking Dead*, com uma média de ~8.32.
+
+No entanto, a diferença entre a avaliação geral das séries é bem pequena, tendo *Archer* (a pior avaliada) apenas 0.23 pontos a menos em sua média.
+
+### E em relação a cada temporada?
+
+Até agora só avaliamos as séries como um todo, mas sempre há episódios/temporadas que se destacam entre os outros, que marcam os fãs das séries.
+
+Então, analisando mais profundamente, será que esse ranking se mantém ao longo das temporadas?
+
+```{r}
+avaliacao_temporadas = dados %>%
+                       group_by(series_name, season) %>% 
+                       summarise(media = mean(user_rating))
+
+avaliacao_temporadas %>% 
+    ggplot(aes(x = season, y = media, color = series_name)) + 
+    ggtitle("Avaliação das séries ao longo das temporadas") +
+    theme(plot.title = element_text(color="red", size=14, face="bold.italic")) +
+    geom_line(aes(colour=series_name, group=series_name)) + 
+    geom_point() +
+    labs(x = "Temporada", y = "Média", color = "Série")
+```
+
+É fácil perceber a grande variação da avaliação das séries ao decorrer das temporadas.
+
+Nas duas primeiras temporadas, a avaliação está de acordo com o que havíamos calculado antes (Melhor: The Walking Dead, Médio: The Office, Pior: Archer).
+Porém, a partir da terceira temporada, o cenário começa a mudar.
+
+Dados interessantes:
+
+    - Há uma grande queda da avaliação de The Walking Dead em sua última temporada.
+    - The Office também apresenta uma grande queda a partir da quinta temporada.
+    - Archer possui a avaliação com menor variação no decorrer das temporadas.
+    
+## Irregularidade na qualidade dos episódios
+
+Será que a avaliação das séries varia muito ao decorrer dos episódios?
+Vamos analisar isso para cada série separadamente.
+
+```{r}
+av_archer = dados %>%
+                       filter(series_name == "Archer") %>%
+                       group_by(series_name, series_ep) %>% 
+                       summarise(media = mean(user_rating))
+
+av_archer %>% 
+    ggplot(aes(x = series_ep, y = media)) + 
+    ggtitle("Avaliação da série Archer") +
+    theme(plot.title = element_text(color="red", size=14, face="bold.italic")) +
+    geom_line() + 
+    geom_point() +
+    labs(x = "Episódio", y = "Média")
+```
+
+```{r}
+av_the_office = dados %>%
+                       filter(series_name == "The Office") %>%
+                       group_by(series_name, series_ep) %>% 
+                       summarise(media = mean(user_rating))
+
+av_the_office %>% 
+    ggplot(aes(x = series_ep, y = media)) + 
+    ggtitle("Avaliação da série The Office") +
+    theme(plot.title = element_text(color="red", size=14, face="bold.italic")) +
+    geom_line() + 
+    geom_point() +
+    labs(x = "Episódio", y = "Média")
+```
+
+```{r}
+av_the_walking_dead = dados %>%
+                       filter(series_name == "The Walking Dead") %>%
+                       group_by(series_name, series_ep) %>% 
+                       summarise(media = mean(user_rating))
+
+av_the_walking_dead %>% 
+    ggplot(aes(x = series_ep, y = media)) + 
+    ggtitle("Avaliação da série The Walking Dead") +
+    theme(plot.title = element_text(color="red", size=14, face="bold.italic")) +
+    geom_line() + 
+    geom_point() +
+    labs(x = "Episódio", y = "Média")
+```
+
+Podemos facilmente concluir que a avaliação das 3 séries possui uma recorrente variação ao decorrer dos episódios, sendo *The Walking Dead* a que apresenta maior variação/irregularidade, tendo como nota máxima quase 10, e nota mínima abaixo de 6.
