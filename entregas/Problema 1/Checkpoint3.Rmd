@@ -117,7 +117,13 @@ series_fame
 Agora, vamos ordenar as séries em relação à fama, em ordem decrescente. Assim teremos as 3 séries desejadas.
 
 ```{r}
-arrange(series_fame, desc(fame))
+series_fame %>%
+    top_n(15, fame) %>%
+    mutate(series_name = reorder(series_name, fame)) %>%
+    ggplot(aes(series_name, fame)) +
+    geom_segment(aes(x=series_name, xend=series_name, y=0, yend=fame), size = 1.1, alpha = 0.6) +
+    geom_point(size = 3.5) +
+    coord_flip()
 ```
 
 Obtemos assim, que as 3 séries mais famosas são: **Game of Thrones**, **Sherlock** e **Breaking Bad**.
@@ -133,7 +139,6 @@ media_famous_series = dados %>%
                         filter(series_name %in% c("Game of Thrones", "Sherlock", "Breaking Bad")) %>%
                         group_by(series_name) %>%
                         summarise(media = mean(user_rating))
-media_famous_series
 ```
 
 Temos que a série mais famosa possui, como avaliação geral, 9.04. 
@@ -149,6 +154,11 @@ var_media = dados %>%
                 summarise(media = mean(user_rating))
 
 var_media %>% summary(media)
+
+var_media %>%
+    ggplot(aes(y=media, x=0)) +
+    geom_boxplot(alpha=0) +
+    geom_jitter(alpha=0.5)
 ```
 
 ```{r}
